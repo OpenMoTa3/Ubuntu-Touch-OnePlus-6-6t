@@ -1,0 +1,99 @@
+name: Ubuntu Touch Build
+
+on:
+  push:
+    branches:
+      - add-binderbug-workaround
+
+  pull_request:
+    branches:
+      - add-binderbug-workaround
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Ubuntu Touch image
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+          cache: gradle
+
+      - name: Install build dependencies
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+
+          sudo apt-get install -y \
+            bc \
+            bison \
+            build-essential \
+            cpio \
+            curl \
+            flex \
+            gperf \
+            jq \
+            kmod \
+            libncurses5 \
+            libncurses5-dev \
+            libssl-dev \
+            libtinfo5 \
+            libxml2-utils \
+            openjdk-8-jdk \
+            python3 \
+            unzip \
+            wget \
+            xz-utils \
+            zip \
+            zlib1g-dev \
+            android-sdk-libsparse-utils
+
+      - name: Install repo tool
+        run: |
+          mkdir -p "${HOME}/.local/bin"
+
+          curl -fsSL \
+            https://storage.googleapis.com/git-repo-downloads/repo \
+            -o "${HOME}/.local/bin/repo"
+
+          chmod +x "${HOME}/.local/bin/repo"
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+
+      - name: Check build environment
+        run: |
+          git --version
+          python3 --version
+          java -version
+          repo --version
+
+      - name: Make build script executable
+        run: |
+          chmod +x build.sh
+
+      - name: Build Ubuntu Touch image
+        run: |
+          ./build.sh
+
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ubuntu-touch-build
+          if-no-files-found: warn
+          retention-days: 7
+          path: |
+            images/
+            ota/
+            out/
